@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/rchipoli/Documents/source/Claude/HIPPASECTool/assets/css /Users/rchipoli/Documents/source/Claude/HIPPASECTool/assets/js)"
+    ],
+    "additionalDirectories": [
+      "/Users/rchipoli/Documents/source/Claude/HIPPASECTool/assets"
+    ]
+  }
+}
