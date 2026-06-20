@@ -1,4 +1,8 @@
 import jsPDF from 'jspdf';
+
+const MAX_NOTES_LENGTH = 2000;
+const sanitizeNotes = (notes: string) =>
+  notes.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').slice(0, MAX_NOTES_LENGTH);
 import autoTable from 'jspdf-autotable';
 import { HIPAA_DATA } from '../data/hipaa';
 import { type OrgInfo, type SpecResponse, STATUS_META, getSpecResponse } from '../store/useHipaaStore';
@@ -127,7 +131,7 @@ export function exportPDF(
           sp.title,
           sp.type === 'R' ? 'Required' : 'Addressable',
           cat?.title ?? '',
-          r.notes || '',
+          sanitizeNotes(r.notes || ''),
         ];
       }),
       styles: { fontSize: 8, cellPadding: 4 },
@@ -208,7 +212,7 @@ export function exportPDF(
     if (orgInfo.name) doc.text(orgInfo.name, margin, pageH - 20);
   }
 
-  const filename = `HIPAA_Assessment_${(orgInfo.name || 'Report').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const filename = `HIPAA_Assessment_${(orgInfo.name || 'Report').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)}_${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(filename);
 }
 

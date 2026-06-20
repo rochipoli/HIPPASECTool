@@ -61,6 +61,7 @@ export default function SpecItem({ spec }: Props) {
             onChange={e => setResponse(spec.id, response.status, e.target.value)}
             placeholder="Document evidence, planned actions, or exceptions…"
             rows={2}
+            maxLength={2000}
           />
         </div>
       </div>

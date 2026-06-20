@@ -53,6 +53,7 @@ export default function Dashboard() {
                   type="text"
                   placeholder="Acme Health System"
                   value={orgInfo.name}
+                  maxLength={200}
                   onChange={e => setOrgInfo('name', e.target.value)}
                 />
               </div>
@@ -72,6 +73,7 @@ export default function Dashboard() {
                   type="text"
                   placeholder="Jane Smith"
                   value={orgInfo.assessor}
+                  maxLength={200}
                   onChange={e => setOrgInfo('assessor', e.target.value)}
                 />
               </div>
@@ -82,6 +84,7 @@ export default function Dashboard() {
                   type="text"
                   placeholder="CISO / IT Security Manager"
                   value={orgInfo.assessorTitle}
+                  maxLength={200}
                   onChange={e => setOrgInfo('assessorTitle', e.target.value)}
                 />
               </div>

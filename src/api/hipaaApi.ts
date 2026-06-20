@@ -3,16 +3,20 @@
 
 const BASE = '/api/hipaa';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function apiReq<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(BASE + path, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
     credentials: 'include',
     ...(body !== undefined && { body: JSON.stringify(body) }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `API ${res.status}`);
+    throw new Error(`Request failed (${res.status})`);
   }
   return res.json() as Promise<T>;
 }
@@ -38,7 +42,12 @@ export interface CreateAssessmentInput {
 }
 
 export const listAssessments  = () => apiReq<AssessmentSummary[]>('GET', '/assessments');
-export const getAssessment    = (id: string) => apiReq<AssessmentDetail>('GET', `/assessments/${id}`);
+export const getAssessment    = (id: string) => {
+  if (!UUID_RE.test(id)) throw new Error('Invalid assessment ID');
+  return apiReq<AssessmentDetail>('GET', `/assessments/${encodeURIComponent(id)}`);
+};
 export const createAssessment = (input: CreateAssessmentInput) => apiReq<AssessmentDetail>('POST', '/assessments', input);
-export const saveResponses    = (id: string, responses: Record<string, { status: string; notes: string }>) =>
-  apiReq<{ updated: number }>('PUT', `/assessments/${id}/responses`, { responses });
+export const saveResponses    = (id: string, responses: Record<string, { status: string; notes: string }>) => {
+  if (!UUID_RE.test(id)) throw new Error('Invalid assessment ID');
+  return apiReq<{ updated: number }>('PUT', `/assessments/${encodeURIComponent(id)}/responses`, { responses });
+};
