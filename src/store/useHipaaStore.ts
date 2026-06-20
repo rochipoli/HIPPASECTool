@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { saveResponses } from '../api/hipaaApi';
 
 export type StatusValue = '' | 'compliant' | 'partial' | 'noncompliant' | 'na';
 export type ViewType = 'dashboard' | 'assessment' | 'report';
@@ -36,6 +37,9 @@ interface HipaaState {
   responses: Record<string, SpecResponse>;
   currentView: ViewType;
   currentCategoryIndex: number;
+  // Backend sync state
+  assessmentId: string | null;
+  syncStatus: 'idle' | 'syncing' | 'error';
 }
 
 interface HipaaActions {
@@ -43,6 +47,8 @@ interface HipaaActions {
   setResponse: (specId: string, status: StatusValue, notes?: string) => void;
   setView: (view: ViewType, catIndex?: number) => void;
   reset: () => void;
+  setAssessmentId: (id: string) => void;
+  syncToBackend: () => Promise<void>;
 }
 
 const initialState: HipaaState = {
@@ -55,17 +61,22 @@ const initialState: HipaaState = {
   responses: {},
   currentView: 'dashboard',
   currentCategoryIndex: 0,
+  assessmentId: null,
+  syncStatus: 'idle',
 };
+
+// Debounce timer for auto-sync
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useHipaaStore = create<HipaaState & HipaaActions>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
       setOrgInfo: (field, value) =>
         set(state => ({ orgInfo: { ...state.orgInfo, [field]: value } })),
 
-      setResponse: (specId, status, notes) =>
+      setResponse: (specId, status, notes) => {
         set(state => ({
           responses: {
             ...state.responses,
@@ -74,7 +85,12 @@ export const useHipaaStore = create<HipaaState & HipaaActions>()(
               notes: notes !== undefined ? notes : (state.responses[specId]?.notes ?? ''),
             },
           },
-        })),
+        }));
+
+        // Debounced auto-sync: wait 2s after last change before saving
+        if (syncTimer) clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => get().syncToBackend(), 2000);
+      },
 
       setView: (view, catIndex) =>
         set(state => ({
@@ -82,12 +98,27 @@ export const useHipaaStore = create<HipaaState & HipaaActions>()(
           currentCategoryIndex: catIndex !== undefined ? catIndex : state.currentCategoryIndex,
         })),
 
-      reset: () =>
-        set({ responses: {}, currentView: 'dashboard', currentCategoryIndex: 0 }),
+      reset: () => set({ responses: {}, currentView: 'dashboard', currentCategoryIndex: 0 }),
+
+      setAssessmentId: (id) => set({ assessmentId: id }),
+
+      syncToBackend: async () => {
+        const { assessmentId, responses } = get();
+        if (!assessmentId || !Object.keys(responses).length) return;
+
+        set({ syncStatus: 'syncing' });
+        try {
+          await saveResponses(assessmentId, responses);
+          set({ syncStatus: 'idle' });
+        } catch {
+          set({ syncStatus: 'error' });
+        }
+      },
     }),
     {
       name: 'hipaa_checklist_v1',
-      partialize: state => ({ orgInfo: state.orgInfo, responses: state.responses }),
+      // Persist locally as fallback — backend is source of truth when assessmentId is set
+      partialize: state => ({ orgInfo: state.orgInfo, responses: state.responses, assessmentId: state.assessmentId }),
     }
   )
 );
